@@ -1,0 +1,14 @@
+# Global
+.env
+.DS_Store
+*.log
+
+# Directorios de módulos (asumiendo que están dentro de front/ y back/)
+**/node_modules/
+
+# Archivos de build y temporales
+**/dist/
+**/build/
+
+# Archivos de configuración locales
+**/.env.local
