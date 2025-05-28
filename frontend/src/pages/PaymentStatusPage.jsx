@@ -1,10 +1,10 @@
 // src/pages/PaymentStatusPage.jsx
 import React, { useEffect, useState, useCallback } from 'react'; // Añade useCallback
 import { useLocation, useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../config/apiConfig';
 
 const MAX_RETRIES = 3; // Intentar consultar el estado hasta 3 veces
 const RETRY_DELAY_MS = 3000; // Esperar 3 segundos entre reintentos
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000';
 
 const PaymentStatusPage = () => {
   const location = useLocation();
