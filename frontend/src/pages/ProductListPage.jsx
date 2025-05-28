@@ -9,9 +9,10 @@ function ProductListPage() {
   const [products, setProducts] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000';
 
   const fetchProducts = () => { // Función para poder llamarla de nuevo
-    fetch('http://localhost:4000/products') // O usa tu servicio: getProducts()
+    fetch(`${API_BASE_URL}/api/products`) // O usa tu servicio: getProducts()
       .then(res => res.json())
       .then(data => setProducts(data))
       .catch(err => console.error('Error fetching products:', err));

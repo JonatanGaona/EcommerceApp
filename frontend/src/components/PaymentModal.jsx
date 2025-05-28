@@ -45,7 +45,7 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
   useEffect(() => { localStorage.setItem(LS_KEYS.DELIVERY_CITY, deliveryCity); }, [deliveryCity]);
   useEffect(() => { localStorage.setItem(LS_KEYS.DELIVERY_PHONE, deliveryPhone); }, [deliveryPhone]);
 
-
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000';
   const productPriceAsNumber = product && typeof product.price === 'string'
     ? parseFloat(product.price)
     : product?.price || 0;
@@ -162,7 +162,7 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
       // OJO: el `deliveryInfo` que pasas a `createWompiTransaction` en el backend
       // se usa para `card_holder: deliveryInfo.name` y para los datos de metadata.
       // Asegúrate de que la estructura de `paymentPayload.deliveryInfo` coincida con lo que espera el backend.
-      const response = await fetch('http://localhost:4000/api/create-wompi-transaction', {
+      const response = await  fetch(`${API_BASE_URL}/api/create-wompi-transaction`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(paymentPayload), // Envía el payload ajustado

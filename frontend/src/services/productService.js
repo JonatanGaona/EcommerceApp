@@ -2,7 +2,7 @@
 
 // URL base de tu API de backend.
 // Asegúrate de que este puerto coincida con el puerto en el que se ejecuta tu backend (ej. en main.ts).
-const API_BASE_URL = 'http://localhost:4000'; 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000';
 
 /**
  * Realiza una solicitud HTTP para obtener la lista de productos desde el backend.

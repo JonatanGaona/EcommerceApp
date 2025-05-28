@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 const MAX_RETRIES = 3; // Intentar consultar el estado hasta 3 veces
 const RETRY_DELAY_MS = 3000; // Esperar 3 segundos entre reintentos
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000';
 
 const PaymentStatusPage = () => {
   const location = useLocation();
@@ -17,7 +18,7 @@ const PaymentStatusPage = () => {
   // Usamos useCallback para que la función no se recree innecesariamente
   const fetchOrderStatus = useCallback(async (wompiId) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/orders/by-wompi-id/${wompiId}`);
+      const response = await fetch(`${API_BASE_URL}/api/orders/by-wompi-id/${wompiId}`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || `Error ${response.status}`);
