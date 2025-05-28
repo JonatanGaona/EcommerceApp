@@ -13,15 +13,15 @@ Esta aplicación demuestra un flujo de onboarding para la compra de un producto,
 
 **Frontend:**
 * **Librería:** ReactJS
-* **Manejo de Estado:** *(Se utilizó manejo de estado local de React. La implementación de Redux/Vuex, según el requisito, está pendiente).*
+* **Manejo de Estado:** *(Se utilizó manejo de estado local de React. La implementación de Redux/Vuex).*
 * **Enrutamiento:** React Router DOM
 * **Estilos:** CSS plano (principalmente a través de estilos en línea y clases CSS globales) y Flexbox/Grid para layout.
 * **Librerías Principales:** `fetch` (para llamadas API al backend).
 
 ## Despliegue
 
-* **Backend Desplegado en Railway:** `https://ecommerceapp-production-1ed2.up.railway.app` *(¡Verifica que esta sea tu URL final!)*
-* **Frontend Desplegado en Vercel:** `https://ecommerce-app-mu-dusky.vercel.app` *(¡Verifica que esta sea tu URL final!)*
+* **Backend Desplegado en Railway:** `https://ecommerceapp-production-1ed2.up.railway.app` 
+* **Frontend Desplegado en Vercel:** `https://ecommerce-app-mu-dusky.vercel.app`
 * **Base de Datos:** PostgreSQL (alojada en Railway).
 
 ## Características Implementadas
@@ -54,17 +54,17 @@ Esta aplicación demuestra un flujo de onboarding para la compra de un producto,
 ### Backend
 1.  Clona el repositorio: `git clone [URL_DE_TU_REPOSITORIO_AQUI]`
 2.  Navega al directorio del backend: `cd backend`
-3.  Crea un archivo `.env` basado en `.env.example` (si lo tienes) o con las siguientes variables:
+3.  Crea un archivo `.env` basado en `.env.example`  con las siguientes variables:
     * `DB_HOST=localhost`
     * `DB_PORT=5432`
     * `DB_USERNAME=tu_usuario_postgres_local`
     * `DB_PASSWORD=tu_password_postgres_local`
     * `DB_DATABASE=nombre_tu_bd_local`
-    * `PAYMENT_GATEWAY_PUBLIC_KEY=pub_stagtest_...` *(tu llave pública de la pasarela)*
-    * `PAYMENT_GATEWAY_PRIVATE_KEY=prv_stagtest_...` *(tu llave privada de la pasarela)*
-    * `PAYMENT_GATEWAY_EVENTS_SECRET_KEY=stagtest_events_...` *(tu llave de secretos de eventos)*
-    * `PAYMENT_GATEWAY_INTEGRITY_KEY=stagtest_integrity_...` *(tu llave de integridad de transacciones, si es diferente a la de eventos)*
-    * `FRONTEND_BASE_URL=http://localhost:3000` *(o el puerto de tu frontend local)*
+    * `PAYMENT_GATEWAY_PUBLIC_KEY=pub_stagtest_...` *(llave pública de la pasarela)*
+    * `PAYMENT_GATEWAY_PRIVATE_KEY=prv_stagtest_...` *(llave privada de la pasarela)*
+    * `PAYMENT_GATEWAY_EVENTS_SECRET_KEY=stagtest_events_...` *(llave de secretos de eventos)*
+    * `PAYMENT_GATEWAY_INTEGRITY_KEY=stagtest_integrity_...` *(llave de integridad de transacciones, si es diferente a la de eventos)*
+    * `FRONTEND_BASE_URL=http://localhost:3000` *(puerto del frontend local)*
 4.  Instala las dependencias: `npm install`
 5.  Asegúrate de que la opción `synchronize: true` esté activa en la configuración de TypeORM (`app.module.ts`) para desarrollo.
 6.  Inicia el servidor de desarrollo: `npm run start:dev`
@@ -83,9 +83,9 @@ Esta aplicación demuestra un flujo de onboarding para la compra de un producto,
 * **Productos:**
     * `GET /products`: Obtiene la lista de todos los productos.
 * **Pagos/Órdenes:**
-    * `POST /api/create-wompi-transaction`: Inicia una nueva transacción de pago. *(Nombre actual, considera generalizar a `/api/create-transaction` en el futuro).*
-    * `POST /api/wompi-webhook`: Endpoint para recibir notificaciones de la pasarela de pagos. *(Nombre actual, considera generalizar a `/api/payment-webhook` en el futuro).*
-    * `GET /api/orders/by-wompi-id/:paymentGatewayTransactionId`: Consulta el estado de una orden usando el ID de la transacción de la pasarela. *(El path exacto es `/api/orders/by-wompi-id/:wompiId` según tu implementación).*
+    * `POST /api/create-wompi-transaction`: Inicia una nueva transacción de pago.
+    * `POST /api/wompi-webhook`: Endpoint para recibir notificaciones de la pasarela de pagos. 
+    * `GET /api/orders/by-wompi-id/:paymentGatewayTransactionId`: Consulta el estado de una orden usando el ID de la transacción de la pasarela.
 * **Clientes:**
     * `GET /api/customers`: Obtiene la lista de todos los clientes.
 * **Entregas:**
@@ -93,7 +93,7 @@ Esta aplicación demuestra un flujo de onboarding para la compra de un producto,
 
 ## Esquema de la Base de Datos (Entidades Principales)
 
-* **Product:** `id` (uuid), `name` (string), `description` (text), `price` (decimal), `stock` (int), `createdAt` (timestamp), `updatedAt` (timestamp). *(Omitida `imageUrl` ya que decidiste posponerla).*
+* **Product:** `id` (uuid), `name` (string), `description` (text), `price` (decimal), `stock` (int), `createdAt` (timestamp), `updatedAt` (timestamp). 
 * **Order (Transacción):** `id` (string, referencia interna, PK), `productId` (uuid), `customerId` (uuid, FK a Customer), `amount` (number, en centavos), `status` (string: PENDING, APPROVED, DECLINED), `wompiTransactionId` (string, ID de la pasarela), `customerEmail` (string), `metadata` (jsonb, para detalles de entrega), `createdAt` (timestamp), `updatedAt` (timestamp).
 * **Customer:** `id` (uuid), `name` (string), `email` (string, unique), `phone` (string, nullable), `createdAt` (timestamp), `updatedAt` (timestamp).
 * **Delivery:** `id` (uuid), `orderId` (string, FK a Order), `customerId` (uuid, FK a Customer), `customerNameForDelivery` (string), `address` (string), `city` (string), `phone` (string, nullable), `status` (enum: PENDING_SHIPMENT, etc.), `createdAt` (timestamp), `updatedAt` (timestamp).
