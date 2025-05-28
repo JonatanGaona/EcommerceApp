@@ -6,6 +6,8 @@ import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProductModule } from './product/product.module';
 import { PaymentModule } from './payment/payment.module';
+import { CustomerModule } from './customer/customer.module';
+import { DeliveryModule } from './delivery/delivery.module';
 import { ConfigModule } from '@nestjs/config';
 import { OrderModule } from './order/order.module';
 
@@ -29,6 +31,8 @@ import { OrderModule } from './order/order.module';
     ProductModule,
     PaymentModule,
     OrderModule,
+    CustomerModule,
+    DeliveryModule,
   ],
   controllers: [],
   providers: [],

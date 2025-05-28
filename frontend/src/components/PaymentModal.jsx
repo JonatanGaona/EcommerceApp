@@ -57,7 +57,56 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
     if (/^5[1-5]/.test(number)) return 'MasterCard';
     return '';
    };
-  const validateForm = () => { /* ... tu función validateForm ... */ };
+  const validateForm = () => {
+    let newErrors = {};
+    let isValid = true;
+
+    // Validación de la tarjeta
+    if (!cardNumber || cardNumber.replace(/\s/g, '').length < 16 || !/^\d+$/.test(cardNumber.replace(/\s/g, ''))) {
+      newErrors.cardNumber = 'El número de tarjeta debe tener al menos 16 dígitos numéricos.';
+      isValid = false;
+    }
+    if (!cardHolder.trim()) {
+      newErrors.cardHolder = 'El nombre del titular es requerido.';
+      isValid = false;
+    }
+    // ... (resto de tus validaciones para expiryDate, cvv) ...
+    if (!expiryDate || !/^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(expiryDate)) {
+        newErrors.expiryDate = 'Formato de fecha de vencimiento inválido (MM/AA).';
+        isValid = false;
+    } else {
+        // ... tu lógica de validación de expiración de tarjeta ...
+    }
+    if (!cvv || !/^\d{3,4}$/.test(cvv)) {
+        newErrors.cvv = 'CVV inválido (3 o 4 dígitos numéricos).';
+        isValid = false;
+    }
+
+    // Validación de la información de entrega
+    if (!deliveryName.trim()) {
+      newErrors.deliveryName = 'El nombre completo de entrega es requerido.';
+      isValid = false;
+    }
+    // ... (resto de tus validaciones para deliveryAddress, deliveryCity, deliveryPhone) ...
+    if (!deliveryAddress.trim()) {
+        newErrors.deliveryAddress = 'La dirección de entrega es requerida.';
+        isValid = false;
+    }
+    if (!deliveryCity.trim()) {
+        newErrors.deliveryCity = 'La ciudad de entrega es requerida.';
+        isValid = false;
+    }
+    if (!deliveryPhone || !/^\d{7,}$/.test(deliveryPhone)) {
+        newErrors.deliveryPhone = 'El número de teléfono es inválido (mínimo 7 dígitos).';
+        isValid = false;
+    }
+
+    console.log('Dentro de validateForm - newErrors:', newErrors, 'isValid:', isValid);
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
 
   // Función para limpiar todos los campos del formulario y localStorage
   const clearFormAndStorage = () => {
