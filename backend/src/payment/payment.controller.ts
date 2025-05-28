@@ -1,66 +1,179 @@
-import { Controller, Post, Body, Req, Res, HttpStatus, HttpException } from '@nestjs/common';
+// src/payment/payment.controller.ts
+import {
+  Controller,
+  Post,
+  Body,
+  Req,
+  Res,
+  HttpStatus,
+  HttpException,
+  Logger,
+} from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { Request, Response } from 'express';
+import { ConfigService } from '@nestjs/config';
+import { OrderService } from '../order/order.service';
+import { createHash, createHmac } from 'crypto';
 
 @Controller('api')
 export class PaymentController {
-  constructor(private readonly paymentService: PaymentService) {}
+  private readonly logger = new Logger(PaymentController.name);
 
-  /**
-   * Maneja la creación de una transacción de Wompi.
-   * Recibe los datos del producto y la información de entrega desde el frontend.
-   *
-   * @param body - Objeto que contiene el ID del producto y los detalles de entrega.
-   * @returns Un objeto con un mensaje y la URL de redirección proporcionada por Wompi.
-   * @throws HttpException en caso de error durante el procesamiento de la transacción.
-   */
+  constructor(
+    private readonly paymentService: PaymentService,
+    private readonly configService: ConfigService,
+    private readonly orderService: OrderService,
+  ) {}
+
   @Post('create-wompi-transaction')
-  async createTransaction(@Body() body: { productId: string, deliveryInfo: any }) {
+  async createTransaction(@Body() body: { productId: string; deliveryInfo: any }) {
+    // ... (tu código actual para createTransaction, que parece estar bien)
+    this.logger.log(`Recibida solicitud para crear transacción para productId: ${body.productId}`);
     const { productId, deliveryInfo } = body;
     try {
-      // Llama al servicio de pago para iniciar la transacción con Wompi.
-      // El servicio manejará la obtención de tokens, tokenización de tarjeta y creación de la transacción.
-      const transactionResponse = await this.paymentService.createWompiTransaction(productId, deliveryInfo);
+      const transactionResponseFromService = await this.paymentService.createWompiTransaction(productId, deliveryInfo);
+      const redirectUrl = transactionResponseFromService.data?.redirect_url;
 
-      // Si la transacción fue exitosa, Wompi devuelve una URL de redirección.
-      // Esta URL se envía al frontend para que el usuario complete el flujo de pago o vea el estado.
+      if (!redirectUrl) {
+          this.logger.error('No se encontró redirect_url en la respuesta de Wompi.', transactionResponseFromService);
+          throw new HttpException('Error al procesar la respuesta de Wompi: redirect_url faltante.', HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+
+      this.logger.log(`Transacción iniciada, redirect_url: ${redirectUrl}`);
       return {
         message: 'Transacción en estado PENDING creada con éxito.',
-        // La respuesta del servicio debería contener la redirect_url de Wompi
-        redirect_url: transactionResponse.data.redirect_url,
+        redirect_url: redirectUrl,
       };
     } catch (error) {
-      // Captura y relanza cualquier error que ocurra durante el procesamiento de la transacción.
-      // Si el error es una HttpException lanzada desde el servicio, se propagará directamente.
-      // Si es otro tipo de error, se puede envolver en una HttpException genérica si es necesario.
+      this.logger.error(`Error en createTransaction: ${error.message}`, error.stack);
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
-        error.response || 'Error al procesar la transacción',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        error.message || 'Error al procesar la transacción',
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
-  /**
-   * Endpoint para manejar las notificaciones (webhooks) enviadas por Wompi.
-   * Wompi utiliza este endpoint para informar sobre cambios en el estado de las transacciones (aprobada, declinada, etc.).
-   * La lógica para verificar la firma del webhook y actualizar el estado de la transacción
-   * en la base de datos debe implementarse aquí.
-   *
-   * @param req - Objeto de solicitud de Express.
-   * @param res - Objeto de respuesta de Express.
-   */
   @Post('wompi-webhook')
   async handleWebhook(@Req() req: Request, @Res() res: Response) {
-    // Implementación futura:
-    // 1. Verificar la firma del webhook para asegurar su autenticidad (usando la clave de integridad).
-    // 2. Procesar el cuerpo del webhook para obtener el estado de la transacción.
-    // 3. Actualizar el estado de la transacción correspondiente en la base de datos local.
-    // 4. Enviar una respuesta HTTP 200 OK a Wompi para confirmar la recepción.
+    this.logger.log('Webhook POST /api/wompi-webhook recibido.');
+    this.logger.debug(`Webhook Headers: ${JSON.stringify(req.headers, null, 2)}`);
+    this.logger.debug(`Webhook Body: ${JSON.stringify(req.body)}`);
 
-    console.log('Webhook POST /api/wompi-webhook recibido.');
-    console.log('Webhook Body:', JSON.stringify(req.body, null, 2));
+    const wompiEventsSecretKey = this.configService.get<string>('WOMPI_EVENTS_SECRET_KEY');
+    const eventBody = req.body;
+    const receivedSignatureFromHeader = req.headers['x-event-checksum'] as string; // Intentamos leer el nuevo header
+    const receivedSignatureFromBody = eventBody.signature?.checksum as string; // Firma desde el cuerpo
+    const eventTimestamp = eventBody.timestamp; // Timestamp del evento
 
-    // Lógica de procesamiento del webhook pendiente de implementación
-    res.status(HttpStatus.OK).send('Webhook recibido');
+    // Usaremos la firma del cuerpo, que parece más confiable y viene con sus propiedades.
+    const receivedSignature = receivedSignatureFromBody;
+
+    if (!wompiEventsSecretKey) {
+        this.logger.error('WOMPI_EVENTS_SECRET_KEY no está configurada en el backend.');
+        return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('Configuración de servidor incompleta.');
+    }
+
+    if (!receivedSignature || !eventTimestamp || !eventBody.signature?.properties) {
+      this.logger.warn('Webhook Error: Falta firma (signature.checksum), timestamp o signature.properties en el body.');
+      return res.status(HttpStatus.BAD_REQUEST).send('Datos de firma o timestamp faltantes o incompletos.');
+    }
+
+    // --- Verificación de la firma ---
+    try {
+     /* const propertiesToSign: string[] = eventBody.signature.properties;
+      let stringToSign = '';
+
+      // Concatenar los valores de las propiedades de la transacción
+      for (const prop of propertiesToSign) {
+        // Las propiedades son como "transaction.id", "transaction.status"
+        // Necesitamos acceder a eventBody.data.transaction[nombre_real_propiedad]
+        const propPath = prop.split('.'); // ej: ["transaction", "id"]
+        let valueToSign = eventBody.data;
+        for (const pathPart of propPath) {
+            if (valueToSign && typeof valueToSign === 'object' && pathPart in valueToSign) {
+                valueToSign = valueToSign[pathPart];
+            } else {
+                this.logger.error(`Propiedad para firmar no encontrada en el body: ${prop}`);
+                throw new Error(`Propiedad para firmar no encontrada: ${prop}`);
+            }
+        }
+        stringToSign += String(valueToSign); // Asegurarnos que es string
+      }
+
+      // Añadir el timestamp y la clave de integridad
+       stringToSign += String(eventTimestamp) + wompiEventsSecretKey;
+      this.logger.debug(`String construido para firmar: "${stringToSign}"`);
+
+      const calculatedSignature = createHmac('sha256', wompiEventsSecretKey)
+                                    .update(stringToSign)
+                                    .digest('hex');
+
+      if (receivedSignature !== calculatedSignature) {
+        this.logger.error(`Webhook Error: ¡Firma inválida! Recibida: ${receivedSignature}, Calculada: ${calculatedSignature}`);
+        return res.status(HttpStatus.UNAUTHORIZED).send('Firma inválida.');
+      }
+      this.logger.log('¡Firma del Webhook verificada exitosamente!');
+    } catch (error) { */
+     const tx = eventBody.data.transaction;     
+     const stringToSign = `${tx.id}${tx.status}${String(tx.amount_in_cents)}${String(eventTimestamp)}${wompiEventsSecretKey}`;
+
+     this.logger.debug(`String construido para firmar (explícito y VALOR REAL): "${stringToSign}"`);
+
+      const hash = createHash('sha256'); // Usar createHash para SHA256 directo
+      hash.update(stringToSign);
+      const calculatedSignature = hash.digest('hex');
+
+     if (receivedSignature !== calculatedSignature) {
+      this.logger.error(`Webhook Error: ¡Firma inválida! Recibida: ${receivedSignature}, Calculada: ${calculatedSignature}`);
+      return res.status(HttpStatus.UNAUTHORIZED).send('Firma inválida.');
+     }
+    this.logger.log('¡Firma del Webhook verificada exitosamente!');
+    }catch (error) {
+      this.logger.error(`Webhook Error: Falló la verificación de la firma: ${error.message}`, error.stack);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('Error en la verificación de la firma.');
+    }
+
+    // --- Procesamiento del evento (igual que antes) ---
+    const eventType = eventBody.event;
+    const transaction = eventBody.data.transaction;
+
+    if (!transaction || !transaction.reference || !transaction.status || !transaction.id) {
+      this.logger.error('Webhook Error: Datos de transacción inválidos en el cuerpo del webhook.');
+      return res.status(HttpStatus.BAD_REQUEST).send('Datos de transacción inválidos.');
+    }
+
+    const orderId = transaction.reference;
+    const wompiTransactionId = transaction.id;
+    const transactionStatus = transaction.status;
+
+    try {
+      switch (eventType) {
+        case 'transaction.updated':
+          this.logger.log(`Procesando transaction.updated para orden ${orderId} con estado ${transactionStatus} y wompiId ${wompiTransactionId}`);
+          await this.orderService.updateOrderStatus(orderId, transactionStatus, wompiTransactionId);
+
+          if (transactionStatus === 'APPROVED') {
+            // Esta lógica se moverá o refinará, pero por ahora es un placeholder
+            const order = await this.orderService.findOrderById(orderId);
+            if (order && order.productId) {
+              this.logger.log(`TODO: Implementar la lógica de reducción de stock para productId: ${order.productId}`);
+              // Aquí llamarías a this.productService.decreaseStock(order.productId, 1);
+              // Para ello, ProductService debería estar inyectado en OrderService, o OrderService
+              // debería tener un método que maneje esto, o ProductService inyectado aquí.
+            }
+          }
+          break;
+        default:
+          this.logger.log(`Evento de webhook no manejado: ${eventType}`);
+      }
+      this.logger.log(`Orden ${orderId} procesada desde webhook. Nuevo estado Wompi: ${transactionStatus}`);
+      return res.status(HttpStatus.OK).send('Webhook recibido y procesado.');
+    } catch (error) {
+      this.logger.error(`Error procesando webhook para orden ${orderId}: ${error.message}`, error.stack);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('Error interno al procesar el webhook.');
+    }
   }
 }

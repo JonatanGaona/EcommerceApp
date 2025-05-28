@@ -1,138 +1,180 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+// src/payment/payment.service.ts
+import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common'; // Añade Logger
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { createHash } from 'crypto';
 import { ProductService } from '../product/product.service';
+import { OrderService } from '../order/order.service'; // Ya lo tienes importado
 
 @Injectable()
 export class PaymentService {
+  // Declarar un logger para esta clase (opcional pero útil)
+  private readonly logger = new Logger(PaymentService.name);
+
   constructor(
     private configService: ConfigService,
     private productService: ProductService,
+    private orderService: OrderService,
   ) {}
 
-  /**
-   * Procesa la creación de una transacción de pago con Wompi.
-   * Realiza la obtención de tokens de aceptación, tokenización de tarjeta (para pruebas)
-   * calcula la firma de integridad y envía la transacción a Wompi.
-   *
-   * @param productId El ID del producto a comprar.
-   * @param deliveryInfo Los detalles de la información de entrega del cliente.
-   * @returns La respuesta completa de Wompi de la transacción creada.
-   * @throws HttpException si el producto no se encuentra o hay un error en la comunicación con Wompi.
-   */
   async createWompiTransaction(productId: string, deliveryInfo: any): Promise<any> {
+    this.logger.log(`Iniciando createWompiTransaction para productId: ${productId}`);
+
     // Buscar el producto en la base de datos
+    // ASUMO que tu ProductService tiene un método findOne, si se llama getProductById como antes, ajústalo.
     const product = await this.productService.findOne(productId);
     if (!product) {
+      this.logger.error(`Producto no encontrado con ID: ${productId}`);
       throw new HttpException('Producto no encontrado', HttpStatus.NOT_FOUND);
     }
+    this.logger.log(`Producto encontrado: ${product.name}`);
 
-    // Calcular el monto en centavos. Wompi requiere el monto en la unidad más pequeña de la moneda.
+    // Calcular el monto en centavos.
     let amountInCents = Math.round(product.price * 100);
-    // Wompi tiene un monto mínimo para transacciones. Se ajusta para el entorno de pruebas.
-    const MIN_AMOUNT_WOMPI = 150000; // Equivalente a 1,500 COP.
+    const MIN_AMOUNT_WOMPI = 150000;
 
-    if (amountInCents < MIN_AMOUNT_WOMPI) {
-      console.warn(`Monto total en centavos (${amountInCents}) es menor al mínimo de Wompi (${MIN_AMOUNT_WOMPI}). Ajustando para la prueba...`);
-      amountInCents = MIN_AMOUNT_WOMPI;
+    // --- INICIO DE CAMBIOS IMPORTANTES ---
+
+    // 1. GENERAR LA REFERENCIA ÚNICA PARA NUESTRA ORDEN LOCAL Y PARA WOMPI
+    // Esta será el ID de nuestra entidad Order
+    const orderIdForReference = `ORDER-${Date.now()}-${productId}`;
+    this.logger.log(`Referencia generada para la orden: ${orderIdForReference}`);
+
+    // (Opcional pero recomendado) Considera si aquí debes sumar tarifas base o de envío
+    // como lo tenías en el ejemplo de la guía anterior:
+    // const baseFeeInCents = 250; // Ejemplo: 2.50 COP
+    // const deliveryFeeInCents = 500; // Ejemplo: 5.00 COP
+    // let finalAmountForOrderAndWompi = amountInCents + baseFeeInCents + deliveryFeeInCents;
+    // Por ahora, usaré amountInCents, pero tenlo en cuenta.
+    let finalAmountForOrderAndWompi = amountInCents;
+
+
+    if (finalAmountForOrderAndWompi < MIN_AMOUNT_WOMPI) {
+      this.logger.warn(`Monto total en centavos (${finalAmountForOrderAndWompi}) es menor al mínimo de Wompi (${MIN_AMOUNT_WOMPI}). Ajustando para la prueba...`);
+      finalAmountForOrderAndWompi = MIN_AMOUNT_WOMPI;
     }
+    this.logger.log(`Monto final en centavos para Wompi y orden local: ${finalAmountForOrderAndWompi}`);
+
+
+    // 2. CREAR LA ORDEN EN TU BASE DE DATOS CON ESTADO 'PENDING'
+    let newLocalOrder; // La declaramos aquí para usarla en el catch si es necesario
+    try {
+      newLocalOrder = await this.orderService.createOrder({
+        id: orderIdForReference, // Usamos la referencia como ID de nuestra orden
+        productId: product.id,
+        amount: finalAmountForOrderAndWompi, // Guarda el monto final
+        status: 'PENDING', // Estado inicial
+        // Asumimos que deliveryInfo tiene un email, si no, ajusta o usa un default
+        customerEmail: deliveryInfo.email || 'cliente@example.com',
+        // Podrías guardar más data de deliveryInfo en la orden si tu entidad Order lo permite
+      });
+      this.logger.log(`Orden local creada con ID: ${newLocalOrder.id} y estado PENDING`);
+    } catch (dbError) {
+      this.logger.error(`Error al crear la orden local en la BD: ${dbError.message}`, dbError.stack);
+      throw new HttpException('Error al registrar la orden antes de contactar a Wompi.', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    // --- FIN DE CAMBIOS IMPORTANTES POR AHORA ---
+
 
     // Obtener las claves de API de Wompi desde las variables de entorno.
     const WOMPI_PRIVATE_KEY = this.configService.get<string>('WOMPI_PRIVATE_KEY');
     const WOMPI_PUBLIC_KEY = this.configService.get<string>('WOMPI_PUBLIC_KEY');
     const WOMPI_INTEGRITY_KEY = this.configService.get<string>('WOMPI_INTEGRITY_KEY');
-    const WOMPI_API_BASE_URL = 'https://api-sandbox.co.uat.wompi.dev/v1'; // URL para el entorno UAT Sandbox de Wompi.
-    const FRONTEND_BASE_URL = this.configService.get<string>('FRONTEND_BASE_URL');
+    const WOMPI_API_BASE_URL = 'https://api-sandbox.co.uat.wompi.dev/v1';
+    const FRONTEND_BASE_URL = this.configService.get<string>('FRONTEND_BASE_URL'); // Asegúrate que esta variable exista en tu .env
 
-    // Validar que todas las variables de entorno necesarias estén configuradas.
     if (!FRONTEND_BASE_URL) {
+      this.logger.error('FRONTEND_BASE_URL no está configurada.');
       throw new Error('FRONTEND_BASE_URL no está configurada en las variables de entorno.');
     }
     if (!WOMPI_PRIVATE_KEY || !WOMPI_PUBLIC_KEY || !WOMPI_INTEGRITY_KEY) {
+      this.logger.error('Variables de Wompi no configuradas.');
       throw new Error('Variables de entorno de Wompi no configuradas correctamente.');
     }
 
     try {
       // 1. Obtener tokens de aceptación del comercio.
-      // Este token es necesario para crear transacciones.
+      this.logger.log('Obteniendo token de aceptación de Wompi...');
       const acceptanceTokenResponse = await axios.get(`${WOMPI_API_BASE_URL}/merchants/${WOMPI_PUBLIC_KEY}`);
       const acceptanceToken = acceptanceTokenResponse.data.data.presigned_acceptance.acceptance_token;
-      const acceptPersonalAuth = acceptanceTokenResponse.data.data.presigned_acceptance.perm_url; // Posible URL de autenticación personal
+      // const acceptPersonalAuth = acceptanceTokenResponse.data.data.presigned_acceptance.perm_url; // No siempre se usa
 
       // 2. Tokenizar la tarjeta de prueba.
-      // En un entorno de producción, la tokenización se realiza generalmente en el frontend
-      // para evitar el manejo de datos sensibles de la tarjeta en el backend.
+      this.logger.log('Tokenizando tarjeta de prueba...');
       const cardTokenResponse = await axios.post(`${WOMPI_API_BASE_URL}/tokens/cards`, {
-        number: '4242424242424242', // Tarjeta de prueba Visa (Wompi Sandbox)
-        cvc: '123',
-        exp_month: '12',
-        exp_year: '28',
-        card_holder: deliveryInfo.name,
+        number: deliveryInfo.cardNumber || '4242424242424242', // Usa la tarjeta de deliveryInfo o la de prueba
+        cvc: deliveryInfo.cvc || '123',
+        exp_month: deliveryInfo.expMonth || '12',
+        exp_year: deliveryInfo.expYear || '28',
+        card_holder: deliveryInfo.name, // deliveryInfo.name debe ser el nombre del titular de la tarjeta
       }, {
-        headers: {
-          Authorization: `Bearer ${WOMPI_PUBLIC_KEY}`,
-        },
+        headers: { Authorization: `Bearer ${WOMPI_PUBLIC_KEY}` },
       });
       const cardToken = cardTokenResponse.data.data.id;
+      this.logger.log(`Tarjeta tokenizada, token: ${cardToken}`);
 
       // 3. Calcular la firma de integridad (hash SHA256).
-      // Esta firma es una medida de seguridad que valida los datos de la transacción.
-      // La cadena debe formarse en un orden específico según la documentación de Wompi.
-      const reference = `ORDER-${Date.now()}-${productId}`; // Referencia única para la transacción
+      // USAREMOS orderIdForReference que es el ID de nuestra orden local
       const currency = 'COP';
-      const integrityString = `${reference}${amountInCents}${currency}${WOMPI_INTEGRITY_KEY}`;
+      const integrityString = `${orderIdForReference}${finalAmountForOrderAndWompi}${currency}${WOMPI_INTEGRITY_KEY}`;
       const integritySignature = createHash('sha256').update(integrityString).digest('hex');
+      this.logger.log('Firma de integridad calculada.');
 
       // 4. Construir y enviar los datos de la transacción a Wompi.
       const transactionData = {
         currency: currency,
-        amount_in_cents: amountInCents,
-        reference: reference,
-        customer_email: 'cliente@example.com',
-        redirect_url: `${FRONTEND_BASE_URL}/payment-status`,
-        metadata: {
+        amount_in_cents: finalAmountForOrderAndWompi, // Usa el monto final
+        reference: orderIdForReference, // La referencia es el ID de nuestra orden local
+        customer_email: newLocalOrder.customerEmail, // Email de la orden local
+        redirect_url: `${FRONTEND_BASE_URL}/payment-status`, // Asegúrate que FRONTEND_BASE_URL esté bien
+        metadata: { // Puedes añadir cualquier metadata útil
+          orderId: newLocalOrder.id, // ID de tu orden interna
           productId: product.id,
           productName: product.name,
-          deliveryName: deliveryInfo.name,
-          deliveryAddress: deliveryInfo.address,
-          deliveryCity: deliveryInfo.city,
-          deliveryPhone: deliveryInfo.phone,
-          status: 'PENDING',
         },
         payment_method: {
           type: 'CARD',
-          installments: 1, // Número de cuotas
-          token: cardToken, // Token de la tarjeta obtenido previamente
+          installments: 1,
+          token: cardToken,
         },
-        acceptance_token: acceptanceToken, // Token de aceptación del comercio
-        accept_personal_auth: acceptPersonalAuth, // Incluir si Wompi lo requiere para el flujo específico
-        signature: integritySignature, // Firma de integridad calculada
+        acceptance_token: acceptanceToken,
+        signature: integritySignature,
       };
+      this.logger.log(`Enviando datos de transacción a Wompi para referencia: ${orderIdForReference}`);
 
-      // Enviar la solicitud de creación de transacción a Wompi.
       const wompiResponse = await axios.post(
         `${WOMPI_API_BASE_URL}/transactions`,
         transactionData,
-        {
-          headers: {
-            Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`, // Autorización con la clave privada
-          },
-        },
+        { headers: { Authorization: `Bearer ${WOMPI_PRIVATE_KEY}` } },
       );
- // === TEMPORALMENTE REINTRODUCE ESTE LOG PARA DEPURAR ===
-      console.log('--- Wompi Debug: Respuesta COMPLETA de Wompi API:', JSON.stringify(wompiResponse.data, null, 2));
-      // =======================================================
+      this.logger.log(`Respuesta de Wompi recibida para ${orderIdForReference}: ${JSON.stringify(wompiResponse.data.data.status)}`);
 
-      // La respuesta exitosa de Wompi contiene los detalles de la transacción creada.
+      // Si Wompi devuelve un ID, actualiza la orden local con el wompiTransactionId
+      if (wompiResponse.data?.data?.id) {
+          await this.orderService.updateOrderStatus(newLocalOrder.id, wompiResponse.data.data.status, wompiResponse.data.data.id);
+          this.logger.log(`Orden local ${newLocalOrder.id} actualizada con wompi_id: ${wompiResponse.data.data.id} y estado Wompi: ${wompiResponse.data.data.status}`);
+      }
+
+
       return wompiResponse.data;
 
     } catch (error) {
-      // Manejo de errores de la API de Wompi o de red.
-      // Se lanza una HttpException para que sea capturada por el controlador.
+      this.logger.error(`Error durante la interacción con Wompi para la orden ${newLocalOrder?.id || orderIdForReference}: ${error.message}`, error.stack);
+      // Si newLocalOrder se creó, actualiza su estado a 'FAILED' o similar
+      if (newLocalOrder && newLocalOrder.id) {
+        try {
+          await this.orderService.updateOrderStatus(newLocalOrder.id, 'ERROR_WOMPI_CALL');
+          this.logger.log(`Orden local ${newLocalOrder.id} actualizada a estado ERROR_WOMPI_CALL`);
+        } catch (updateError) {
+          this.logger.error(`Error al intentar actualizar la orden local ${newLocalOrder.id} a ERROR_WOMPI_CALL: ${updateError.message}`, updateError.stack);
+        }
+      }
+
+      const errorMessage = error.response ? JSON.stringify(error.response.data) : error.message;
       throw new HttpException(
-        `Error al crear transacción con Wompi: ${error.response ? JSON.stringify(error.response.data) : error.message}`,
-        error.response?.status || HttpStatus.BAD_REQUEST, // Usa el estado de error de Wompi o BAD_REQUEST por defecto
+        `Error al crear transacción con Wompi: ${errorMessage}`,
+        error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR, // Usa INTERNAL_SERVER_ERROR si no hay status de Wompi
       );
     }
   }
