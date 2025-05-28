@@ -1,191 +1,147 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Asegúrate de importar useEffect
 
 // Constantes para tarifas fijas de la transacción.
 const BASE_FEE = 2.50;
 const DELIVERY_FEE = 5.00;
 
-/**
- * Componente Modal de Pago.
- * Muestra un formulario para la información de tarjeta y entrega,
- * un resumen de pago y gestiona la interacción con el backend para iniciar la transacción Wompi.
- *
- * @param {object} props - Propiedades del componente.
- * @param {boolean} props.isOpen - Indica si el modal está abierto.
- * @param {function} props.onClose - Función para cerrar el modal.
- * @param {object} props.product - Objeto del producto seleccionado para la compra.
- */
+// Nombres de las claves para localStorage (para evitar errores de tipeo)
+const LS_KEYS = {
+  CARD_NUMBER: 'paymentForm_cardNumber',
+  CARD_HOLDER: 'paymentForm_cardHolder',
+  EXPIRY_DATE: 'paymentForm_expiryDate',
+  CVV: 'paymentForm_cvv',
+  DELIVERY_NAME: 'paymentForm_deliveryName',
+  DELIVERY_ADDRESS: 'paymentForm_deliveryAddress',
+  DELIVERY_CITY: 'paymentForm_deliveryCity',
+  DELIVERY_PHONE: 'paymentForm_deliveryPhone',
+};
+
 const PaymentModal = ({ isOpen, onClose, product }) => {
-  // Estados para los campos de información de la tarjeta.
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardHolder, setCardHolder] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
-  const [cvv, setCvv] = useState('');
+  // Función para obtener valor inicial de localStorage o string vacío
+  const getInitialState = (key) => localStorage.getItem(key) || '';
 
-  // Estados para los campos de información de entrega.
-  const [deliveryName, setDeliveryName] = useState('');
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [deliveryCity, setDeliveryCity] = useState('');
-  const [deliveryPhone, setDeliveryPhone] = useState('');
+  // Estados para los campos, inicializados desde localStorage
+  const [cardNumber, setCardNumber] = useState(() => getInitialState(LS_KEYS.CARD_NUMBER));
+  const [cardHolder, setCardHolder] = useState(() => getInitialState(LS_KEYS.CARD_HOLDER));
+  const [expiryDate, setExpiryDate] = useState(() => getInitialState(LS_KEYS.EXPIRY_DATE));
+  const [cvv, setCvv] = useState(() => getInitialState(LS_KEYS.CVV));
 
-  // Estado para almacenar errores de validación del formulario.
+  const [deliveryName, setDeliveryName] = useState(() => getInitialState(LS_KEYS.DELIVERY_NAME));
+  const [deliveryAddress, setDeliveryAddress] = useState(() => getInitialState(LS_KEYS.DELIVERY_ADDRESS));
+  const [deliveryCity, setDeliveryCity] = useState(() => getInitialState(LS_KEYS.DELIVERY_CITY));
+  const [deliveryPhone, setDeliveryPhone] = useState(() => getInitialState(LS_KEYS.DELIVERY_PHONE));
+
   const [errors, setErrors] = useState({});
-  // Estado para controlar los pasos del modal (formulario o resumen).
-  const [currentStep, setCurrentStep] = useState('form'); 
-  // Estado para indicar si una operación de pago está en curso (ej. envío al backend).
+  const [currentStep, setCurrentStep] = useState('form');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Convierte el precio del producto a número si es un string y maneja valores nulos.
-  const productPriceAsNumber = product && typeof product.price === 'string' 
-                               ? parseFloat(product.price) 
-                               : product?.price || 0;
+  // Guardar en localStorage cada vez que un campo cambie
+  useEffect(() => { localStorage.setItem(LS_KEYS.CARD_NUMBER, cardNumber); }, [cardNumber]);
+  useEffect(() => { localStorage.setItem(LS_KEYS.CARD_HOLDER, cardHolder); }, [cardHolder]);
+  useEffect(() => { localStorage.setItem(LS_KEYS.EXPIRY_DATE, expiryDate); }, [expiryDate]);
+  useEffect(() => { localStorage.setItem(LS_KEYS.CVV, cvv); }, [cvv]);
+  useEffect(() => { localStorage.setItem(LS_KEYS.DELIVERY_NAME, deliveryName); }, [deliveryName]);
+  useEffect(() => { localStorage.setItem(LS_KEYS.DELIVERY_ADDRESS, deliveryAddress); }, [deliveryAddress]);
+  useEffect(() => { localStorage.setItem(LS_KEYS.DELIVERY_CITY, deliveryCity); }, [deliveryCity]);
+  useEffect(() => { localStorage.setItem(LS_KEYS.DELIVERY_PHONE, deliveryPhone); }, [deliveryPhone]);
 
-  // Si el modal no está abierto, no renderiza nada.
+
+  const productPriceAsNumber = product && typeof product.price === 'string'
+    ? parseFloat(product.price)
+    : product?.price || 0;
+
   if (!isOpen) return null;
 
-  /**
-   * Determina el tipo de tarjeta basado en el primer dígito del número de tarjeta.
-   * @param {string} number - El número de tarjeta.
-   * @returns {string} El tipo de tarjeta (Visa, MasterCard) o cadena vacía si no se reconoce.
-   */
-  const getCardType = (number) => {
+  const getCardType = (number) => { 
     if (/^4/.test(number)) return 'Visa';
     if (/^5[1-5]/.test(number)) return 'MasterCard';
     return '';
+   };
+  const validateForm = () => { /* ... tu función validateForm ... */ };
+
+  // Función para limpiar todos los campos del formulario y localStorage
+  const clearFormAndStorage = () => {
+    setCardNumber('');
+    setCardHolder('');
+    setExpiryDate('');
+    setCvv('');
+    setDeliveryName('');
+    setDeliveryAddress('');
+    setDeliveryCity('');
+    setDeliveryPhone('');
+    setErrors({});
+    setCurrentStep('form'); // Volver al primer paso del modal
+
+    Object.values(LS_KEYS).forEach(key => localStorage.removeItem(key));
   };
 
-  /**
-   * Valida todos los campos del formulario antes de pasar al resumen o procesar el pago.
-   * @returns {boolean} True si el formulario es válido, false en caso contrario.
-   */
-  const validateForm = () => {
-    let newErrors = {};
-    let isValid = true;
-
-    // Validación de la tarjeta
-    if (!cardNumber || cardNumber.replace(/\s/g, '').length < 16 || !/^\d+$/.test(cardNumber.replace(/\s/g, ''))) {
-      newErrors.cardNumber = 'El número de tarjeta debe tener al menos 16 dígitos numéricos.';
-      isValid = false;
-    }
-    if (!cardHolder.trim()) {
-      newErrors.cardHolder = 'El nombre del titular es requerido.';
-      isValid = false;
-    }
-    if (!expiryDate || !/^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(expiryDate)) {
-      newErrors.expiryDate = 'Formato de fecha de vencimiento inválido (MM/AA).';
-      isValid = false;
-    } else {
-        const [month, year] = expiryDate.split('/').map(Number);
-        const currentYear = new Date().getFullYear() % 100;
-        const currentMonth = new Date().getMonth() + 1;
-        
-        if (year < currentYear || (year === currentYear && month < currentMonth)) {
-            newErrors.expiryDate = 'La tarjeta ha expirado.';
-            isValid = false;
-        }
-    }
-    if (!cvv || !/^\d{3,4}$/.test(cvv)) {
-      newErrors.cvv = 'CVV inválido (3 o 4 dígitos numéricos).';
-      isValid = false;
-    }
-
-    // Validación de la información de entrega
-    if (!deliveryName.trim()) {
-      newErrors.deliveryName = 'El nombre completo de entrega es requerido.';
-      isValid = false;
-    }
-    if (!deliveryAddress.trim()) {
-      newErrors.deliveryAddress = 'La dirección de entrega es requerida.';
-      isValid = false;
-    }
-    if (!deliveryCity.trim()) {
-      newErrors.deliveryCity = 'La ciudad de entrega es requerida.';
-      isValid = false;
-    }
-    if (!deliveryPhone || !/^\d{7,}$/.test(deliveryPhone)) {
-      newErrors.deliveryPhone = 'El número de teléfono es inválido (mínimo 7 dígitos).';
-      isValid = false;
-    }
-
-    setErrors(newErrors);
-    return isValid;
-  };
-
-  /**
-   * Maneja el envío del formulario inicial.
-   * Valida los campos y, si son válidos, avanza al paso de resumen.
-   * @param {object} e - Objeto del evento de envío.
-   */
   const handleSubmit = (e) => {
     e.preventDefault();
-
     if (validateForm()) {
-      setCurrentStep('summary'); 
+      setCurrentStep('summary');
     } else {
       console.log('Formulario inválido. Por favor, corrige los errores antes de continuar.');
     }
   };
 
-  /**
-   * Regresa del paso de resumen al formulario de entrada de datos.
-   */
   const handleBackToForm = () => {
     setCurrentStep('form');
   };
 
-  /**
-   * Inicia el proceso de pago final enviando la información al backend.
-   * Después de recibir una respuesta exitosa, redirige al usuario a la URL de Wompi.
-   */
   const handleFinalPayment = async () => {
-    setIsLoading(true); // Activar estado de carga
-
-    const deliveryInfo = {
-        name: deliveryName,
-        address: deliveryAddress,
-        city: deliveryCity,
-        phone: deliveryPhone,
+    setIsLoading(true);
+    // Datos para enviar al backend (ajusta según lo que tu backend realmente necesita)
+    const paymentPayload = {
+        productId: product.id,
+        deliveryInfo: { // Objeto que agrupa la información relevante
+            name: deliveryName, // Nombre para la entrega Y para el titular de tarjeta (según tu backend actual)
+            address: deliveryAddress,
+            city: deliveryCity,
+            phone: deliveryPhone,
+            customerEmail: 'cliente_resiliente@example.com', // Deberías tener un input para esto
+            // Datos de la tarjeta (tu backend actualmente usa una de prueba, pero es bueno pasarlos)
+            cardNumber: cardNumber,
+            cardExpMonth: expiryDate.split('/')[0],
+            cardExpYear: expiryDate.split('/')[1], // Asegúrate de que sea 'YY'
+            cardCvc: cvv,
+            cardHolderName: cardHolder // Nombre del titular específico de la tarjeta
+        }
     };
 
+
     try {
-        const response = await fetch('http://localhost:4000/api/create-wompi-transaction', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                productId: product.id,
-                deliveryInfo: deliveryInfo,
-            }),
-        });
+      // OJO: el `deliveryInfo` que pasas a `createWompiTransaction` en el backend
+      // se usa para `card_holder: deliveryInfo.name` y para los datos de metadata.
+      // Asegúrate de que la estructura de `paymentPayload.deliveryInfo` coincida con lo que espera el backend.
+      const response = await fetch('http://localhost:4000/api/create-wompi-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentPayload), // Envía el payload ajustado
+      });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Error al crear transacción con Wompi');
-        }
+      if (!response.ok) { /* ... tu manejo de error ... */ }
 
-        const data = await response.json();
-        console.log('Respuesta del backend (transacción Wompi):', data);
+      const data = await response.json();
+      console.log('Respuesta del backend (inicio transacción):', data);
 
-        // Si el backend proporciona una URL de redirección, navega al usuario a ella.
-        if (data.redirect_url) {
-            window.location.href = data.redirect_url; // Redirección completa a la pasarela de Wompi.
-        } else {
-            alert('No se recibió URL de redirección de Wompi. La transacción pudo haber sido creada.');
-            // Considerar redirigir a una página de estado por defecto o mostrar un mensaje específico.
-        }
-
-    } catch (error) {
-        console.error('Error durante el proceso de pago:', error);
-        alert(`Error al procesar el pago: ${error.message || 'Ha ocurrido un error inesperado'}. Por favor, intenta de nuevo.`);
-    } finally {
-        setIsLoading(false); // Desactivar estado de carga.
-        // No cerrar el modal aquí, ya que el usuario será redirigido o se mostrará un mensaje de error.
-    }
+      if (data.redirect_url_base && data.wompi_transaction_id) {
+        clearFormAndStorage(); // Limpiar el formulario y localStorage ANTES de redirigir
+        const finalRedirectUrl = `${data.redirect_url_base}?id=${data.wompi_transaction_id}`;
+        window.location.href = finalRedirectUrl;
+      } else {
+        alert('No se recibió la información completa para la redirección.');
+      }
+    } catch (error) { /* ... tu manejo de error ... */ }
+    finally { setIsLoading(false); }
+  };
+  
+  // Sobrescribir la función onClose para que también limpie el storage
+  const handleModalClose = () => {
+    clearFormAndStorage();
+    onClose(); // Llama a la función onClose original pasada por props
   };
 
-  // Calcula el tipo de tarjeta actual para mostrarlo al usuario.
-  const currentCardType = getCardType(cardNumber);
-  // Calcula el monto total a pagar incluyendo el precio del producto y las tarifas.
+  const currentCardType = getCardType(cardNumber); 
   const totalAmount = productPriceAsNumber + BASE_FEE + DELIVERY_FEE;
 
   return (
@@ -214,7 +170,7 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
         overflowY: 'auto'
       }}>
         <button 
-          onClick={onClose} 
+          onClick={handleModalClose} 
           style={{
             position: 'absolute',
             top: '10px',

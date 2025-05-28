@@ -55,4 +55,10 @@ export class OrderService {
     }
     return updatedOrder;
   }
+
+  async findByWompiId(wompiId: string): Promise<Order | null> {
+    this.logger.log(`Buscando orden por wompiTransactionId: ${wompiId}`);
+    return this.orderRepository.findOne({ where: { wompiTransactionId: wompiId } });
+  }
+
 }
