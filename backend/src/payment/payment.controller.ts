@@ -32,17 +32,19 @@ export class PaymentController {
     const { productId, deliveryInfo } = body;
     try {
       const transactionResponseFromService = await this.paymentService.createWompiTransaction(productId, deliveryInfo);
-      const redirectUrl = transactionResponseFromService.data?.redirect_url;
+      const wompiTransactionId = transactionResponseFromService.data?.id;
+      const baseRedirectUrl = transactionResponseFromService.data?.redirect_url; 
 
-      if (!redirectUrl) {
+      if (!baseRedirectUrl || !wompiTransactionId) {
           this.logger.error('No se encontró redirect_url en la respuesta de Wompi.', transactionResponseFromService);
           throw new HttpException('Error al procesar la respuesta de Wompi: redirect_url faltante.', HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
-      this.logger.log(`Transacción iniciada, redirect_url: ${redirectUrl}`);
+      this.logger.log(`Transacción iniciada, wompiId: ${wompiTransactionId}, redirect_url base: ${baseRedirectUrl}`);
       return {
         message: 'Transacción en estado PENDING creada con éxito.',
-        redirect_url: redirectUrl,
+        redirect_url_base: baseRedirectUrl,
+        wompi_transaction_id: wompiTransactionId,
       };
     } catch (error) {
       this.logger.error(`Error en createTransaction: ${error.message}`, error.stack);
