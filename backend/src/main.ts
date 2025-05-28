@@ -6,11 +6,16 @@ import { v4 as uuidv4 } from 'uuid';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  // Habilita CORS para permitir solicitudes desde diferentes orígenes (ej. tu frontend).
-  app.enableCors(); 
+
+  // Habilita CORS para permitir solicitudes desde diferentes orígenes.
+  app.enableCors({
+    origin: process.env.FRONTEND_BASE_URL || 'http://localhost:3000',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
   
-  // Inicia la aplicación NestJS en el puerto configurado o 4000 por defecto.
-  await app.listen(process.env.PORT ?? 4000); 
+  await app.listen(process.env.PORT || 4000, '0.0.0.0');
+
   console.log(`Application is running on: ${await app.getUrl()}`);
 
   // Lógica del Seeder para Desarrollo:
