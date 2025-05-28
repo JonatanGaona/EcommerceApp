@@ -4,6 +4,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from './order.entity';
 import { ProductService } from '../product/product.service';
+import { CustomerService } from '../customer/customer.service';
+import { DeliveryService } from '../delivery/delivery.service';
 
 @Injectable()
 export class OrderService {
@@ -12,6 +14,8 @@ export class OrderService {
     @InjectRepository(Order)
     private orderRepository: Repository<Order>,
     private productService: ProductService, 
+    private customerService: CustomerService,
+    private deliveryService: DeliveryService,
   ) {}
 
   async createOrder(orderData: Partial<Order>): Promise<Order> {
@@ -31,6 +35,7 @@ export class OrderService {
   async updateOrderStatus(id: string, status: string, wompiTransactionId?: string): Promise<Order> {
     const order = await this.findOrderById(id); // Usa el método que ya maneja NotFoundException
 
+    const previousStatus = order.status;
     order.status = status;
     if (wompiTransactionId) {
       order.wompiTransactionId = wompiTransactionId;
@@ -38,20 +43,36 @@ export class OrderService {
     const updatedOrder = await this.orderRepository.save(order);
     this.logger.log(`Orden ${id} actualizada en BD a estado: ${status}`);
 
-    // --- LÓGICA DE REDUCCIÓN DE STOCK ---
-    if (status === 'APPROVED') {
+    // Solo procesar si el estado cambió a APPROVED
+    if (previousStatus !== 'APPROVED' && status === 'APPROVED') {
       if (updatedOrder.productId) {
         try {
-          await this.productService.decreaseStock(updatedOrder.productId, 1); // Asumimos cantidad 1
+          await this.productService.decreaseStock(updatedOrder.productId, 1);
           this.logger.log(`Stock reducido para el producto ${updatedOrder.productId} de la orden ${id}`);
         } catch (error) {
           this.logger.error(`Error al reducir stock para producto ${updatedOrder.productId}: ${error.message}`, error.stack);
-          // Considera qué hacer aquí: ¿revertir el estado de la orden? ¿marcarla para revisión?
-          // Por ahora, solo logueamos el error.
         }
       } else {
         this.logger.warn(`La orden aprobada ${id} no tiene un productId para reducir stock.`);
       }
+      const customerDetails = {
+        name: updatedOrder.metadata?.deliveryName || 'Cliente de Orden ' + updatedOrder.id, // Ejemplo de cómo podrías tener el nombre
+        phone: updatedOrder.metadata?.deliveryPhone || null, // Ejemplo
+      };
+      const customer = await this.customerService.findOrCreateByEmail(updatedOrder.customerEmail, customerDetails);
+
+      if (customer) {
+        const deliveryData = {
+          orderId: updatedOrder.id,
+          customerId: customer.id,
+          customerName: customer.name,
+          address: updatedOrder.metadata?.deliveryAddress || 'Dirección no especificada',
+          city: updatedOrder.metadata?.deliveryCity || 'Ciudad no especificada',
+          phone: customer.phone,
+        };
+        await this.deliveryService.createDelivery(deliveryData);
+      }
+
     }
     return updatedOrder;
   }

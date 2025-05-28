@@ -1,5 +1,6 @@
-// src/order/order.entity.ts
 import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { ManyToOne, JoinColumn } from 'typeorm';
+import { Customer } from '../customer/customer.entity';
 
 @Entity('orders') // El nombre de tu tabla en la DB
 export class Order {
@@ -20,6 +21,15 @@ export class Order {
 
   @Column({ nullable: true })
   customerEmail: string; // Email del cliente
+
+  @Column({ nullable: true }) // Para el ID del cliente
+  customerId: string;
+
+  @ManyToOne(() => Customer, customer => customer.orders, { nullable: true, eager: false }) // eager: false para no cargar siempre
+  @JoinColumn({ name: 'customerId' })
+  customer: Customer;
+
+  @Column({ type: 'jsonb', nullable: true }) metadata: Record<string, any>;
 
   @CreateDateColumn()
   createdAt: Date;

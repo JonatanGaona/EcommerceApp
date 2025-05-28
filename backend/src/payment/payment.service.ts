@@ -60,13 +60,18 @@ export class PaymentService {
     let newLocalOrder; // La declaramos aquí para usarla en el catch si es necesario
     try {
       newLocalOrder = await this.orderService.createOrder({
-        id: orderIdForReference, // Usamos la referencia como ID de nuestra orden
+        id: orderIdForReference,
         productId: product.id,
-        amount: finalAmountForOrderAndWompi, // Guarda el monto final
-        status: 'PENDING', // Estado inicial
-        // Asumimos que deliveryInfo tiene un email, si no, ajusta o usa un default
-        customerEmail: deliveryInfo.email || 'cliente@example.com',
-        // Podrías guardar más data de deliveryInfo en la orden si tu entidad Order lo permite
+        amount: finalAmountForOrderAndWompi,
+        status: 'PENDING',
+        customerEmail: deliveryInfo.customerEmail || 'cliente@example.com',
+        metadata: {
+          deliveryName: deliveryInfo.name,
+          deliveryAddress: deliveryInfo.address,
+          deliveryCity: deliveryInfo.city,
+          deliveryPhone: deliveryInfo.phone,
+        },
+
       });
       this.logger.log(`Orden local creada con ID: ${newLocalOrder.id} y estado PENDING`);
     } catch (dbError) {
@@ -128,10 +133,13 @@ export class PaymentService {
         reference: orderIdForReference, // La referencia es el ID de nuestra orden local
         customer_email: newLocalOrder.customerEmail, // Email de la orden local
         redirect_url: `${FRONTEND_BASE_URL}/payment-status`, // Asegúrate que FRONTEND_BASE_URL esté bien
-        metadata: { // Puedes añadir cualquier metadata útil
-          orderId: newLocalOrder.id, // ID de tu orden interna
+        metadata: {
           productId: product.id,
           productName: product.name,
+          deliveryName: deliveryInfo.name,
+          deliveryAddress: deliveryInfo.address,
+          deliveryCity: deliveryInfo.city,
+          deliveryPhone: deliveryInfo.phone,
         },
         payment_method: {
           type: 'CARD',

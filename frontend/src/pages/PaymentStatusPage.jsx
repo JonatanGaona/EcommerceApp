@@ -37,31 +37,31 @@ const PaymentStatusPage = () => {
       setIsLoading(true); // Asegurarse que isLoading está true al empezar/reintentar
       fetchOrderStatus(wompiTransactionId)
         .then(orderData => {
-          setOrderStatus(orderData.status);
           if (orderData.status === 'PENDING' && retryCount < MAX_RETRIES) {
+            setOrderStatus(orderData.status); // Actualiza a PENDING visualmente
             setMessage('Tu pago aún está pendiente. Verificando de nuevo en unos segundos...');
+            // No se pone setIsLoading(false) aquí, para que siga "cargando"
             setTimeout(() => {
-              setRetryCount(prevCount => prevCount + 1); // Esto disparará el useEffect de nuevo si retryCount es dependencia
+              setRetryCount(prevCount => prevCount + 1);
             }, RETRY_DELAY_MS);
-            // No ponemos setIsLoading(false) aquí para que siga mostrando "cargando" o un mensaje intermedio
-            return; // Salimos para no procesar el switch de abajo todavía
+          } else {
+            // Estado final (APPROVED, DECLINED, o PENDING después de agotar reintentos)
+            setOrderStatus(orderData.status);
+            switch (orderData.status) {
+              case 'APPROVED':
+                setMessage('¡Tu pago ha sido procesado con éxito!');
+                break;
+              case 'DECLINED':
+                setMessage('Lo sentimos, tu pago ha sido rechazado.');
+                break;
+              case 'PENDING':
+                setMessage('Tu pago sigue pendiente después de varias verificaciones. Por favor, contacta a soporte.');
+                break;
+              default:
+                setMessage(`Estado de pago: ${orderData.status}.`);
+            }
+            setIsLoading(false); // Termina la carga solo cuando hay un estado final o se agotan reintentos
           }
-
-          // Procesamiento final del estado
-          switch (orderData.status) {
-            case 'APPROVED':
-              setMessage('¡Tu pago ha sido procesado con éxito!');
-              break;
-            case 'DECLINED':
-              setMessage('Lo sentimos, tu pago ha sido rechazado.');
-              break;
-            case 'PENDING': // Si se agotaron los reintentos y sigue PENDING
-              setMessage('Tu pago sigue pendiente. Por favor, contacta a soporte o intenta refrescar.');
-              break;
-            default:
-              setMessage(`Estado de pago: ${orderData.status}.`);
-          }
-          setIsLoading(false);
         })
         .catch(err => {
           setError(`Error al verificar el estado del pago: ${err.message}`);
@@ -75,22 +75,15 @@ const PaymentStatusPage = () => {
       setMessage('Información de transacción inválida.');
       setIsLoading(false);
     }
-  // El useEffect se ejecutará cuando location.search cambie (primera carga)
-  // o cuando retryCount cambie (para los reintentos)
-  // y fetchOrderStatus está memoizada con useCallback
   }, [location.search, retryCount, fetchOrderStatus]);
 
-  // ... (el resto de tu JSX y estilos igual que antes) ...
   const handleGoHome = () => {
     navigate('/');
   };
 
-  if (isLoading && orderStatus === 'Verificando...') { // Mostrar solo el primer "Verificando"
-    return <div style={styles.container}><p>Verificando estado del pago, por favor espera...</p></div>;
+  if (isLoading) {
+    return <div style={styles.container}><p>{message || 'Verificando estado del pago, por favor espera...'}</p></div>;
   }
-  // Para los reintentos, podría mostrarse el mensaje de "Verificando de nuevo..."
-  // mientras isLoading podría ser false momentáneamente o gestionarse diferente.
-  // Por simplicidad, la UI principal se muestra después del primer ciclo de carga o reintentos.
 
   return (
     <div style={styles.container}>
