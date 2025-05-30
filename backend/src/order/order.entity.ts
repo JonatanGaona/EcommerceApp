@@ -2,27 +2,27 @@ import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn } fro
 import { ManyToOne, JoinColumn } from 'typeorm';
 import { Customer } from '../customer/customer.entity';
 
-@Entity('orders') // El nombre de tu tabla en la DB
+@Entity('orders') 
 export class Order {
   @PrimaryColumn()
-  id: string; // Usaremos el 'reference' de la app-api como ID de nuestra orden
+  id: string;
 
   @Column()
-  productId: string; // El ID del producto que se compró
+  productId: string;
 
   @Column()
-  amount: number; // El monto de la transacción
+  amount: number;
 
   @Column({ default: 'PENDING' }) // Estado inicial
   status: string; // PENDING, APPROVED, DECLINED, etc.
 
   @Column({ nullable: true })
-  wompiTransactionId: string; // El ID de la transacción de app-api
+  wompiTransactionId: string;
 
   @Column({ nullable: true })
-  customerEmail: string; // Email del cliente
+  customerEmail: string;
 
-  @Column({ nullable: true }) // Para el ID del cliente
+  @Column({ nullable: true })
   customerId: string;
 
   @ManyToOne(() => Customer, customer => customer.orders, { nullable: true, eager: false }) // eager: false para no cargar siempre

@@ -1,9 +1,7 @@
-// src/pages/ProductListPage.jsx (NUEVO ARCHIVO)
+
 import React, { useEffect, useState } from 'react';
-import ProductCard from '../components/ProductCard'; // Ajusta la ruta si es necesario
-import PaymentModal from '../components/PaymentModal'; // Ajusta la ruta si es necesario
-// Importa tu servicio para obtener productos, por ejemplo:
-// import { getProducts } from '../services/productService';
+import ProductCard from '../components/ProductCard';
+import PaymentModal from '../components/PaymentModal';
 import { API_BASE_URL } from '../config/apiConfig';
 
 function ProductListPage() {
@@ -11,8 +9,8 @@ function ProductListPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
-  const fetchProducts = () => { // Función para poder llamarla de nuevo
-    fetch(`${API_BASE_URL}/products`) // O usa tu servicio: getProducts()
+  const fetchProducts = () => { 
+    fetch(`${API_BASE_URL}/products`)
       .then(res => res.json())
       .then(data => setProducts(data))
       .catch(err => console.error('Error fetching products:', err));

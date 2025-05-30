@@ -15,7 +15,6 @@ const PaymentStatusPage = () => {
   const [error, setError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
 
-  // Usamos useCallback para que la función no se recree innecesariamente
   const fetchOrderStatus = useCallback(async (wompiId) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/orders/by-wompi-id/${wompiId}`);
@@ -26,7 +25,7 @@ const PaymentStatusPage = () => {
       return response.json();
     } catch (err) {
       console.error('Error fetching order status from backend:', err);
-      throw err; // Propaga para que el .catch del useEffect lo maneje
+      throw err;
     }
   }, []); // fetchOrderStatus no depende de nada que cambie
 

@@ -15,6 +15,7 @@ const LS_KEYS = {
   DELIVERY_ADDRESS: 'paymentForm_deliveryAddress',
   DELIVERY_CITY: 'paymentForm_deliveryCity',
   DELIVERY_PHONE: 'paymentForm_deliveryPhone',
+  EMAIL_CLIENTE: 'paymentForm_emailCliente',
 };
 
 const PaymentModal = ({ isOpen, onClose, product }) => {
@@ -31,6 +32,7 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
   const [deliveryAddress, setDeliveryAddress] = useState(() => getInitialState(LS_KEYS.DELIVERY_ADDRESS));
   const [deliveryCity, setDeliveryCity] = useState(() => getInitialState(LS_KEYS.DELIVERY_CITY));
   const [deliveryPhone, setDeliveryPhone] = useState(() => getInitialState(LS_KEYS.DELIVERY_PHONE));
+  const [emailCliente, setEmailCliente] = useState(() => getInitialState(LS_KEYS.EMAIL_CLIENTE));
 
   const [errors, setErrors] = useState({});
   const [currentStep, setCurrentStep] = useState('form');
@@ -45,6 +47,7 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
   useEffect(() => { localStorage.setItem(LS_KEYS.DELIVERY_ADDRESS, deliveryAddress); }, [deliveryAddress]);
   useEffect(() => { localStorage.setItem(LS_KEYS.DELIVERY_CITY, deliveryCity); }, [deliveryCity]);
   useEffect(() => { localStorage.setItem(LS_KEYS.DELIVERY_PHONE, deliveryPhone); }, [deliveryPhone]);
+  useEffect(() => { localStorage.setItem(LS_KEYS.EMAIL_CLIENTE, emailCliente); }, [emailCliente]);
 
   const productPriceAsNumber = product && typeof product.price === 'string'
     ? parseFloat(product.price)
@@ -70,12 +73,12 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
       newErrors.cardHolder = 'El nombre del titular es requerido.';
       isValid = false;
     }
-    // ... (resto de tus validaciones para expiryDate, cvv) ...
+    // ... ...
     if (!expiryDate || !/^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(expiryDate)) {
         newErrors.expiryDate = 'Formato de fecha de vencimiento inválido (MM/AA).';
         isValid = false;
     } else {
-        // ... tu lógica de validación de expiración de tarjeta ...
+        // ...  ...
     }
     if (!cvv || !/^\d{3,4}$/.test(cvv)) {
         newErrors.cvv = 'CVV inválido (3 o 4 dígitos numéricos).';
@@ -100,7 +103,12 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
         newErrors.deliveryPhone = 'El número de teléfono es inválido (mínimo 7 dígitos).';
         isValid = false;
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+    if (!emailCliente || !emailRegex.test(emailCliente)) {
+      newErrors.emailCliente = 'El correo electrónico es incorrecto o está vacío.';
+      isValid = false;
+    }
 
     setErrors(newErrors);
     return isValid;
@@ -137,21 +145,19 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
 
   const handleFinalPayment = async () => {
     setIsLoading(true);
-    // Datos para enviar al backend (ajusta según lo que tu backend realmente necesita)
     const paymentPayload = {
         productId: product.id,
-        deliveryInfo: { // Objeto que agrupa la información relevante
-            name: deliveryName, // Nombre para la entrega Y para el titular de tarjeta (según tu backend actual)
+        deliveryInfo: {
+            name: deliveryName,
             address: deliveryAddress,
             city: deliveryCity,
             phone: deliveryPhone,
-            customerEmail: 'cliente_resiliente@example.com', // Deberías tener un input para esto
-            // Datos de la tarjeta (tu backend actualmente usa una de prueba, pero es bueno pasarlos)
+            customerEmail: emailCliente,
             cardNumber: cardNumber,
             cardExpMonth: expiryDate.split('/')[0],
-            cardExpYear: expiryDate.split('/')[1], // Asegúrate de que sea 'YY'
+            cardExpYear: expiryDate.split('/')[1],
             cardCvc: cvv,
-            cardHolderName: cardHolder // Nombre del titular específico de la tarjeta
+            cardHolderName: cardHolder
         }
     };
 
@@ -173,7 +179,7 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
       } else {
         alert('No se recibió la información completa para la redirección.');
       }
-    } catch (error) { /* ... tu manejo de error ... */ }
+    } catch (error) { /* ... manejo de error ... */ }
     finally { setIsLoading(false); }
   };
   
@@ -346,6 +352,18 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
                   style={{ width: '100%', padding: '10px', borderRadius: '4px', border: errors.deliveryPhone ? '1px solid red' : '1px solid #ccc' }}
                 />
                 {errors.deliveryPhone && <p style={{ color: 'red', fontSize: '0.8em', marginTop: '5px' }}>{errors.deliveryPhone}</p>}
+              </div>
+              <div style={{ marginBottom: '15px' }}>
+                <label htmlFor="emailCliente" style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Email</label>
+                <input
+                  type="tel"
+                  id="emailCliente"
+                  value={emailCliente}
+                  onChange={(e) => setEmailCliente(e.target.value.replace(/\D/g, '').substring(0, 10))}
+                  placeholder="3XX XXX XXXX"
+                  style={{ width: '100%', padding: '10px', borderRadius: '4px', border: errors.emailCliente ? '1px solid red' : '1px solid #ccc' }}
+                />
+                {errors.emailCliente && <p style={{ color: 'red', fontSize: '0.8em', marginTop: '5px' }}>{errors.emailCliente}</p>}
               </div>
               
               <button 

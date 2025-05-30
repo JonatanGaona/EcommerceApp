@@ -39,7 +39,7 @@ export class PaymentService {
     }
 
 
-    // 2. CREAR LA ORDEN EN TU BASE DE DATOS CON ESTADO 'PENDING'
+    // 2. CREAR LA ORDEN EN LA BASE DE DATOS CON ESTADO 'PENDING'
     let newLocalOrder;
     try {
       newLocalOrder = await this.orderService.createOrder({
@@ -69,7 +69,7 @@ export class PaymentService {
     const WOMPI_PUBLIC_KEY = this.configService.get<string>('WOMPI_PUBLIC_KEY');
     const WOMPI_INTEGRITY_KEY = this.configService.get<string>('WOMPI_INTEGRITY_KEY');
     const WOMPI_API_BASE_URL = 'https://api-sandbox.co.uat.wompi.dev/v1';
-    const FRONTEND_BASE_URL = this.configService.get<string>('FRONTEND_BASE_URL'); // Asegúrate que esta variable exista en tu .env
+    const FRONTEND_BASE_URL = this.configService.get<string>('FRONTEND_BASE_URL');
 
     if (!FRONTEND_BASE_URL) {
       this.logger.error('FRONTEND_BASE_URL no está configurada.');

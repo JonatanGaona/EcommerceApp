@@ -62,11 +62,10 @@ export class PaymentController {
 
     const wompiEventsSecretKey = this.configService.get<string>('WOMPI_EVENTS_SECRET_KEY');
     const eventBody = req.body;
-    const receivedSignatureFromHeader = req.headers['x-event-checksum'] as string; // Intentamos leer el nuevo header
-    const receivedSignatureFromBody = eventBody.signature?.checksum as string; // Firma desde el cuerpo
-    const eventTimestamp = eventBody.timestamp; // Timestamp del evento
+    const receivedSignatureFromHeader = req.headers['x-event-checksum'] as string;
+    const receivedSignatureFromBody = eventBody.signature?.checksum as string;
+    const eventTimestamp = eventBody.timestamp;
 
-    // Usaremos la firma del cuerpo, que parece más confiable y viene con sus propiedades.
     const receivedSignature = receivedSignatureFromBody;
 
     if (!wompiEventsSecretKey) {
@@ -86,8 +85,6 @@ export class PaymentController {
 
       // Concatenar los valores de las propiedades de la transacción
       for (const prop of propertiesToSign) {
-        // Las propiedades son como "transaction.id", "transaction.status"
-        // Necesitamos acceder a eventBody.data.transaction[nombre_real_propiedad]
         const propPath = prop.split('.'); // ej: ["transaction", "id"]
         let valueToSign = eventBody.data;
         for (const pathPart of propPath) {
