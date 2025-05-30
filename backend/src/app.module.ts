@@ -11,6 +11,11 @@ import { DeliveryModule } from './delivery/delivery.module';
 import { ConfigModule } from '@nestjs/config';
 import { OrderModule } from './order/order.module';
 
+import { Product } from './product/product.entity';
+import { Customer } from './customer/customer.entity';
+import { Delivery } from './delivery/delivery.entity';
+import { Order } from './order/order.entity';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -27,7 +32,7 @@ import { OrderModule } from './order/order.module';
       ssl: {
         rejectUnauthorized: false,
       },
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
+      entities: [Product, Customer, Delivery, Order], 
       synchronize: true,
       autoLoadEntities: true,
     }),
