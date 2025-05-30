@@ -33,7 +33,7 @@ import { Order } from './order/order.entity';
         rejectUnauthorized: false,
       },
       entities: [Product, Customer, Delivery, Order], 
-      synchronize: true,
+      synchronize: false,
       autoLoadEntities: true,
     }),
     ProductModule,
