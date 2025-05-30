@@ -9,7 +9,8 @@ export class ProductController {
 
    @Get()
   async findAll(): Promise<Product[]> {
-    this.logger.log('Controlador: Petición GET a /products recibida.'); // Log de inicio
+    this.logger.log('Controlador: Petición GET a /products recibida.'); // Log de inicio}
+    this.logger.warn('--- DEBUG: PRODUCT CONTROLLER - FINDALL INVOCADO ---');
     try {
       const products = await this.productService.findAll();
       this.logger.log(`Controlador: Devolviendo ${products.length} productos.`); // Log de éxito
