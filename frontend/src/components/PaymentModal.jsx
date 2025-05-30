@@ -360,7 +360,7 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
                   id="emailCliente"
                   value={emailCliente}
                   onChange={(e) => setEmailCliente(e.target.value.replace(/\D/g, '').substring(0, 10))}
-                  placeholder="3XX XXX XXXX"
+                  placeholder="example@example.com"
                   style={{ width: '100%', padding: '10px', borderRadius: '4px', border: errors.emailCliente ? '1px solid red' : '1px solid #ccc' }}
                 />
                 {errors.emailCliente && <p style={{ color: 'red', fontSize: '0.8em', marginTop: '5px' }}>{errors.emailCliente}</p>}
