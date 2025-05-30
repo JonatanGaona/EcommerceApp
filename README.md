@@ -55,11 +55,11 @@ Esta aplicación demuestra un flujo de onboarding para la compra de un producto,
 1.  Clona el repositorio: `git clone [URL_DE_TU_REPOSITORIO_AQUI]`
 2.  Navega al directorio del backend: `cd backend`
 3.  Crea un archivo `.env` basado en `.env.example`  con las siguientes variables:
-    * `DB_HOST=localhost`
-    * `DB_PORT=5432`
-    * `DB_USERNAME=tu_usuario_postgres_local`
-    * `DB_PASSWORD=tu_password_postgres_local`
-    * `DB_DATABASE=nombre_tu_bd_local`
+    * `PGHOST=localhost`
+    * `PGPORT=5432`
+    * `PGUSER=tu_usuario_postgres_local`
+    * `PGPASSWORD=tu_password_postgres_local`
+    * `PGDATABASE=nombre_tu_bd_local`
     * `PAYMENT_GATEWAY_PUBLIC_KEY=pub_stagtest_...` *(llave pública de la pasarela)*
     * `PAYMENT_GATEWAY_PRIVATE_KEY=prv_stagtest_...` *(llave privada de la pasarela)*
     * `PAYMENT_GATEWAY_EVENTS_SECRET_KEY=stagtest_events_...` *(llave de secretos de eventos)*
