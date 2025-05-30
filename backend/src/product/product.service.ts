@@ -9,7 +9,7 @@ export class ProductService {
   private readonly logger = new Logger(ProductService.name);
   constructor(
     @InjectRepository(Product)
-    private repo: Repository<Product>, // Usando 'repo' como lo tenías
+    private repo: Repository<Product>,
   ) {}
 
   async findAll(): Promise<Product[]> {
