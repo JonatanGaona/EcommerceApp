@@ -42,7 +42,7 @@ import { Order } from './order/order.entity';
     CustomerModule,
     DeliveryModule,
   ],
-  controllers: [],
-  providers: [],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
