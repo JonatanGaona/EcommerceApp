@@ -19,6 +19,7 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
 
   console.log(`Application is running on: ${await app.getUrl()}`);
+  console.log(`Application is running on: http://0.0.0.0:${port}`);
 
   // Lógica del Seeder para Desarrollo:
   // Este bloque de código se encarga de poblar la base de datos con productos iniciales
