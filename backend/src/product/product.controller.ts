@@ -1,18 +1,13 @@
-//import { Controller, Get, Logger, InternalServerErrorException, HttpException  } from '@nestjs/common';
-import { Controller, Get, Logger } from '@nestjs/common';
-//import { ProductService } from './product.service';
-//import { Product } from './product.entity';
+import { Controller, Get, Logger, InternalServerErrorException, HttpException  } from '@nestjs/common';
+import { ProductService } from './product.service';
+import { Product } from './product.entity';
 
 @Controller('products')
 export class ProductController {
   private readonly logger = new Logger(ProductController.name);
-  //constructor(private readonly productService: ProductService) {}
-@Get()
-  async findAll(): Promise<string> { // Cambia el tipo de retorno a string
-    this.logger.warn('--- DEBUG: PRODUCT CONTROLLER - FINDALL (HOLA MUNDO) INVOCADO ---');
-    return 'Hola desde /products!'; // Simplemente devuelve un string
-  }
-   /* @Get()
+  constructor(private readonly productService: ProductService) {}
+
+   @Get()
   async findAll(): Promise<Product[]> {
     this.logger.log('Controlador: Petición GET a /products recibida.'); // Log de inicio}
     this.logger.warn('--- DEBUG: PRODUCT CONTROLLER - FINDALL INVOCADO ---');
@@ -32,5 +27,5 @@ export class ProductController {
       // entonces envuélvelo en una.
       throw new InternalServerErrorException('Ocurrió un error inesperado en el controlador al obtener los productos.');
     }
-  } */
+  }
 }
