@@ -356,10 +356,10 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
               <div style={{ marginBottom: '15px' }}>
                 <label htmlFor="emailCliente" style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Email</label>
                 <input
-                  type="tel"
+                  type="email"
                   id="emailCliente"
                   value={emailCliente}
-                  onChange={(e) => setEmailCliente(e.target.value.replace(/\D/g, '').substring(0, 10))}
+                  onChange={(e) => setEmailCliente(e.target.value)}
                   placeholder="example@example.com"
                   style={{ width: '100%', padding: '10px', borderRadius: '4px', border: errors.emailCliente ? '1px solid red' : '1px solid #ccc' }}
                 />
