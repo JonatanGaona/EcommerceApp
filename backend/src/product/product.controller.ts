@@ -1,4 +1,4 @@
-import { Controller, Get, Logger, InternalServerErrorException  } from '@nestjs/common';
+import { Controller, Get, Logger, InternalServerErrorException, HttpException  } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { Product } from './product.entity';
 
@@ -7,17 +7,24 @@ export class ProductController {
   private readonly logger = new Logger(ProductController.name);
   constructor(private readonly productService: ProductService) {}
 
-  @Get()
+   @Get()
   async findAll(): Promise<Product[]> {
-    this.logger.log('Received request to fetch all products.');
+    this.logger.log('Controlador: Petición GET a /products recibida.'); // Log de inicio
     try {
-      return await this.productService.findAll();
+      const products = await this.productService.findAll();
+      this.logger.log(`Controlador: Devolviendo ${products.length} productos.`); // Log de éxito
+      return products;
     } catch (error) {
-      this.logger.error('Error in controller while fetching products:', error.message);
-      if (!(error instanceof InternalServerErrorException)) {
-          throw new InternalServerErrorException('An unexpected error occurred in the product controller.');
+      this.logger.error('Controlador: ERROR al procesar petición GET /products:', error.stack); // Log del error COMPLETO
+      
+      // Si el servicio ya lanzó una HttpException (como InternalServerErrorException),
+      // simplemente relánzala para que NestJS la maneje.
+      if (error instanceof HttpException) { // HttpException es la clase base para NotFoundException, etc.
+        throw error;
       }
-      throw error;
+      // Si el error no es una HttpException (raro si el servicio está bien hecho),
+      // entonces envuélvelo en una.
+      throw new InternalServerErrorException('Ocurrió un error inesperado en el controlador al obtener los productos.');
     }
   }
 }
