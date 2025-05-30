@@ -18,7 +18,8 @@ async function bootstrap() {
   
   await app.listen(port, '0.0.0.0');
   console.log(`Application is running on: http://0.0.0.0:${port}`);
-  console.log("Fin nuevo main")
+  console.log("Fin nuevo main");
+  console.log("FIN MAIN.TS - DEPLOY PRUEBA - 11:XX AM");
 }
 
 bootstrap();
