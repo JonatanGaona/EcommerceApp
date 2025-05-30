@@ -11,7 +11,6 @@ export class OrderController {
   // Endpoint para que el frontend consulte por wompi_transaction_id
   @Get('by-wompi-id/:wompiId')
   async getOrderByWompiId(@Param('wompiId') wompiId: string): Promise<Order> {
-    this.logger.log(`Solicitud para obtener orden por wompiId: ${wompiId}`);
     const order = await this.orderService.findByWompiId(wompiId);
     if (!order) {
       this.logger.warn(`Orden con wompiId ${wompiId} no encontrada.`);

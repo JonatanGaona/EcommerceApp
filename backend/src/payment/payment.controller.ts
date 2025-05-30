@@ -27,8 +27,6 @@ export class PaymentController {
 
   @Post('create-wompi-transaction')
   async createTransaction(@Body() body: { productId: string; deliveryInfo: any }) {
-    // ... (tu código actual para createTransaction, que parece estar bien)
-    this.logger.log(`Recibida solicitud para crear transacción para productId: ${body.productId}`);
     const { productId, deliveryInfo } = body;
     try {
       const transactionResponseFromService = await this.paymentService.createWompiTransaction(productId, deliveryInfo);
@@ -40,7 +38,6 @@ export class PaymentController {
           throw new HttpException('Error al procesar la respuesta de Wompi: redirect_url faltante.', HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
-      this.logger.log(`Transacción iniciada, wompiId: ${wompiTransactionId}, redirect_url base: ${baseRedirectUrl}`);
       return {
         message: 'Transacción en estado PENDING creada con éxito.',
         redirect_url_base: baseRedirectUrl,
@@ -60,7 +57,6 @@ export class PaymentController {
 
   @Post('wompi-webhook')
   async handleWebhook(@Req() req: Request, @Res() res: Response) {
-    this.logger.log('Webhook POST /api/wompi-webhook recibido.');
     this.logger.debug(`Webhook Headers: ${JSON.stringify(req.headers, null, 2)}`);
     this.logger.debug(`Webhook Body: ${JSON.stringify(req.body)}`);
 
@@ -117,7 +113,6 @@ export class PaymentController {
         this.logger.error(`Webhook Error: ¡Firma inválida! Recibida: ${receivedSignature}, Calculada: ${calculatedSignature}`);
         return res.status(HttpStatus.UNAUTHORIZED).send('Firma inválida.');
       }
-      this.logger.log('¡Firma del Webhook verificada exitosamente!');
     } catch (error) { */
      const tx = eventBody.data.transaction;     
      const stringToSign = `${tx.id}${tx.status}${String(tx.amount_in_cents)}${String(eventTimestamp)}${wompiEventsSecretKey}`;
@@ -132,7 +127,6 @@ export class PaymentController {
       this.logger.error(`Webhook Error: ¡Firma inválida! Recibida: ${receivedSignature}, Calculada: ${calculatedSignature}`);
       return res.status(HttpStatus.UNAUTHORIZED).send('Firma inválida.');
      }
-    this.logger.log('¡Firma del Webhook verificada exitosamente!');
     }catch (error) {
       this.logger.error(`Webhook Error: Falló la verificación de la firma: ${error.message}`, error.stack);
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('Error en la verificación de la firma.');
@@ -154,24 +148,18 @@ export class PaymentController {
     try {
       switch (eventType) {
         case 'transaction.updated':
-          this.logger.log(`Procesando transaction.updated para orden ${orderId} con estado ${transactionStatus} y wompiId ${wompiTransactionId}`);
           await this.orderService.updateOrderStatus(orderId, transactionStatus, wompiTransactionId);
 
           if (transactionStatus === 'APPROVED') {
-            // Esta lógica se moverá o refinará, pero por ahora es un placeholder
             const order = await this.orderService.findOrderById(orderId);
             if (order && order.productId) {
-              this.logger.log(`TODO: Implementar la lógica de reducción de stock para productId: ${order.productId}`);
-              // Aquí llamarías a this.productService.decreaseStock(order.productId, 1);
-              // Para ello, ProductService debería estar inyectado en OrderService, o OrderService
-              // debería tener un método que maneje esto, o ProductService inyectado aquí.
+              this.logger.log(`App`);
             }
           }
           break;
         default:
-          this.logger.log(`Evento de webhook no manejado: ${eventType}`);
+          this.logger.log(`Evento de webhook no manejado`);
       }
-      this.logger.log(`Orden ${orderId} procesada desde webhook. Nuevo estado Wompi: ${transactionStatus}`);
       return res.status(HttpStatus.OK).send('Webhook recibido y procesado.');
     } catch (error) {
       this.logger.error(`Error procesando webhook para orden ${orderId}: ${error.message}`, error.stack);

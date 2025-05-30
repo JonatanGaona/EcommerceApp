@@ -23,7 +23,6 @@ export class CustomerService {
         email 
       });
       await this.customerRepository.save(customer);
-      this.logger.log(`Nuevo cliente creado con ID/Email: ${customer.id}`);
     }
     return customer;
   }

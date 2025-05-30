@@ -27,7 +27,6 @@ export class DeliveryService {
       status: DeliveryStatus.PENDING_SHIPMENT,
     });
     await this.deliveryRepository.save(delivery);
-    this.logger.log(`Registro de entrega creado ID: ${delivery.id} para orden ${delivery.orderId}`);
     return delivery;
   }
 

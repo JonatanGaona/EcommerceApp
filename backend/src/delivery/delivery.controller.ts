@@ -9,7 +9,6 @@ export class DeliveryController {
 
   @Get()
   async getAllDeliveries(): Promise<Delivery[]> {
-    this.logger.log('Solicitud para obtener todas las entregas');
     return this.deliveryService.findAll();
   }
 }

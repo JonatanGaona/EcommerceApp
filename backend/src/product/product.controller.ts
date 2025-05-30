@@ -9,22 +9,16 @@ export class ProductController {
 
    @Get()
   async findAll(): Promise<Product[]> {
-    this.logger.log('Controlador: Petición GET a /products recibida.'); // Log de inicio}
     this.logger.warn('--- DEBUG: PRODUCT CONTROLLER - FINDALL INVOCADO ---');
     try {
       const products = await this.productService.findAll();
-      this.logger.log(`Controlador: Devolviendo ${products.length} productos.`); // Log de éxito
       return products;
     } catch (error) {
-      this.logger.error('Controlador: ERROR al procesar petición GET /products:', error.stack); // Log del error COMPLETO
+      this.logger.error('Controlador: ERROR al procesar petición GET /products:', error.stack); 
       
-      // Si el servicio ya lanzó una HttpException (como InternalServerErrorException),
-      // simplemente relánzala para que NestJS la maneje.
-      if (error instanceof HttpException) { // HttpException es la clase base para NotFoundException, etc.
+      if (error instanceof HttpException) {
         throw error;
       }
-      // Si el error no es una HttpException (raro si el servicio está bien hecho),
-      // entonces envuélvelo en una.
       throw new InternalServerErrorException('Ocurrió un error inesperado en el controlador al obtener los productos.');
     }
   }

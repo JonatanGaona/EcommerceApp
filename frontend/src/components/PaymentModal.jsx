@@ -101,14 +101,12 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
         isValid = false;
     }
 
-    console.log('Dentro de validateForm - newErrors:', newErrors, 'isValid:', isValid);
 
     setErrors(newErrors);
     return isValid;
   };
 
 
-  // Función para limpiar todos los campos del formulario y localStorage
   const clearFormAndStorage = () => {
     setCardNumber('');
     setCardHolder('');
@@ -162,16 +160,14 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
       const response = await  fetch(`${API_BASE_URL}/api/create-wompi-transaction`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(paymentPayload), // Envía el payload ajustado
+        body: JSON.stringify(paymentPayload),
       });
 
-      if (!response.ok) { /* ... tu manejo de error ... */ }
 
       const data = await response.json();
-      console.log('Respuesta del backend (inicio transacción):', data);
 
       if (data.redirect_url_base && data.wompi_transaction_id) {
-        clearFormAndStorage(); // Limpiar el formulario y localStorage ANTES de redirigir
+        clearFormAndStorage();
         const finalRedirectUrl = `${data.redirect_url_base}?id=${data.wompi_transaction_id}`;
         window.location.href = finalRedirectUrl;
       } else {
@@ -181,10 +177,9 @@ const PaymentModal = ({ isOpen, onClose, product }) => {
     finally { setIsLoading(false); }
   };
   
-  // Sobrescribir la función onClose para que también limpie el storage
   const handleModalClose = () => {
     clearFormAndStorage();
-    onClose(); // Llama a la función onClose original pasada por props
+    onClose();
   };
 
   const currentCardType = getCardType(cardNumber); 

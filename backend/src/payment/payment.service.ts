@@ -1,14 +1,13 @@
-// src/payment/payment.service.ts
-import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common'; // Añade Logger
+
+import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common'; 
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { createHash } from 'crypto';
 import { ProductService } from '../product/product.service';
-import { OrderService } from '../order/order.service'; // Ya lo tienes importado
+import { OrderService } from '../order/order.service';
 
 @Injectable()
 export class PaymentService {
-  // Declarar un logger para esta clase (opcional pero útil)
   private readonly logger = new Logger(PaymentService.name);
 
   constructor(
@@ -18,34 +17,19 @@ export class PaymentService {
   ) {}
 
   async createWompiTransaction(productId: string, deliveryInfo: any): Promise<any> {
-    this.logger.log(`Iniciando createWompiTransaction para productId: ${productId}`);
 
-    // Buscar el producto en la base de datos
-    // ASUMO que tu ProductService tiene un método findOne, si se llama getProductById como antes, ajústalo.
     const product = await this.productService.findOne(productId);
     if (!product) {
       this.logger.error(`Producto no encontrado con ID: ${productId}`);
       throw new HttpException('Producto no encontrado', HttpStatus.NOT_FOUND);
     }
-    this.logger.log(`Producto encontrado: ${product.name}`);
 
     // Calcular el monto en centavos.
     let amountInCents = Math.round(product.price * 100);
     const MIN_AMOUNT_WOMPI = 150000;
 
-    // --- INICIO DE CAMBIOS IMPORTANTES ---
-
-    // 1. GENERAR LA REFERENCIA ÚNICA PARA NUESTRA ORDEN LOCAL Y PARA WOMPI
-    // Esta será el ID de nuestra entidad Order
+    // 1. GENERAR LA REFERENCIA ÚNICA PARA NUESTRA ORDEN LOCAL 
     const orderIdForReference = `ORDER-${Date.now()}-${productId}`;
-    this.logger.log(`Referencia generada para la orden: ${orderIdForReference}`);
-
-    // (Opcional pero recomendado) Considera si aquí debes sumar tarifas base o de envío
-    // como lo tenías en el ejemplo de la guía anterior:
-    // const baseFeeInCents = 250; // Ejemplo: 2.50 COP
-    // const deliveryFeeInCents = 500; // Ejemplo: 5.00 COP
-    // let finalAmountForOrderAndWompi = amountInCents + baseFeeInCents + deliveryFeeInCents;
-    // Por ahora, usaré amountInCents, pero tenlo en cuenta.
     let finalAmountForOrderAndWompi = amountInCents;
 
 
@@ -53,11 +37,10 @@ export class PaymentService {
       this.logger.warn(`Monto total en centavos (${finalAmountForOrderAndWompi}) es menor al mínimo de Wompi (${MIN_AMOUNT_WOMPI}). Ajustando para la prueba...`);
       finalAmountForOrderAndWompi = MIN_AMOUNT_WOMPI;
     }
-    this.logger.log(`Monto final en centavos para Wompi y orden local: ${finalAmountForOrderAndWompi}`);
 
 
     // 2. CREAR LA ORDEN EN TU BASE DE DATOS CON ESTADO 'PENDING'
-    let newLocalOrder; // La declaramos aquí para usarla en el catch si es necesario
+    let newLocalOrder;
     try {
       newLocalOrder = await this.orderService.createOrder({
         id: orderIdForReference,
@@ -73,7 +56,6 @@ export class PaymentService {
         },
 
       });
-      this.logger.log(`Orden local creada con ID: ${newLocalOrder.id} y estado PENDING`);
     } catch (dbError) {
       this.logger.error(`Error al crear la orden local en la BD: ${dbError.message}`, dbError.stack);
       throw new HttpException('Error al registrar la orden antes de contactar a Wompi.', HttpStatus.INTERNAL_SERVER_ERROR);
@@ -100,13 +82,10 @@ export class PaymentService {
 
     try {
       // 1. Obtener tokens de aceptación del comercio.
-      this.logger.log('Obteniendo token de aceptación de Wompi...');
       const acceptanceTokenResponse = await axios.get(`${WOMPI_API_BASE_URL}/merchants/${WOMPI_PUBLIC_KEY}`);
       const acceptanceToken = acceptanceTokenResponse.data.data.presigned_acceptance.acceptance_token;
-      // const acceptPersonalAuth = acceptanceTokenResponse.data.data.presigned_acceptance.perm_url; // No siempre se usa
 
       // 2. Tokenizar la tarjeta de prueba.
-      this.logger.log('Tokenizando tarjeta de prueba...');
       const cardTokenResponse = await axios.post(`${WOMPI_API_BASE_URL}/tokens/cards`, {
         number: deliveryInfo.cardNumber || '4242424242424242', // Usa la tarjeta de deliveryInfo o la de prueba
         cvc: deliveryInfo.cvc || '123',
@@ -117,22 +96,19 @@ export class PaymentService {
         headers: { Authorization: `Bearer ${WOMPI_PUBLIC_KEY}` },
       });
       const cardToken = cardTokenResponse.data.data.id;
-      this.logger.log(`Tarjeta tokenizada, token: ${cardToken}`);
 
       // 3. Calcular la firma de integridad (hash SHA256).
-      // USAREMOS orderIdForReference que es el ID de nuestra orden local
       const currency = 'COP';
       const integrityString = `${orderIdForReference}${finalAmountForOrderAndWompi}${currency}${WOMPI_INTEGRITY_KEY}`;
       const integritySignature = createHash('sha256').update(integrityString).digest('hex');
-      this.logger.log('Firma de integridad calculada.');
 
       // 4. Construir y enviar los datos de la transacción a Wompi.
       const transactionData = {
         currency: currency,
-        amount_in_cents: finalAmountForOrderAndWompi, // Usa el monto final
-        reference: orderIdForReference, // La referencia es el ID de nuestra orden local
-        customer_email: newLocalOrder.customerEmail, // Email de la orden local
-        redirect_url: `${FRONTEND_BASE_URL}/payment-status`, // Asegúrate que FRONTEND_BASE_URL esté bien
+        amount_in_cents: finalAmountForOrderAndWompi, 
+        reference: orderIdForReference,
+        customer_email: newLocalOrder.customerEmail,
+        redirect_url: `${FRONTEND_BASE_URL}/payment-status`,
         metadata: {
           productId: product.id,
           productName: product.name,
@@ -149,19 +125,16 @@ export class PaymentService {
         acceptance_token: acceptanceToken,
         signature: integritySignature,
       };
-      this.logger.log(`Enviando datos de transacción a Wompi para referencia: ${orderIdForReference}`);
 
       const wompiResponse = await axios.post(
         `${WOMPI_API_BASE_URL}/transactions`,
         transactionData,
         { headers: { Authorization: `Bearer ${WOMPI_PRIVATE_KEY}` } },
       );
-      this.logger.log(`Respuesta de Wompi recibida para ${orderIdForReference}: ${JSON.stringify(wompiResponse.data.data.status)}`);
 
       // Si Wompi devuelve un ID, actualiza la orden local con el wompiTransactionId
       if (wompiResponse.data?.data?.id) {
-          await this.orderService.updateOrderStatus(newLocalOrder.id, wompiResponse.data.data.status, wompiResponse.data.data.id);
-          this.logger.log(`Orden local ${newLocalOrder.id} actualizada con wompi_id: ${wompiResponse.data.data.id} y estado Wompi: ${wompiResponse.data.data.status}`);
+          await this.orderService.updateOrderStatus(newLocalOrder.id, wompiResponse.data.data.status, wompiResponse.data.data.id);         
       }
 
 
@@ -173,7 +146,6 @@ export class PaymentService {
       if (newLocalOrder && newLocalOrder.id) {
         try {
           await this.orderService.updateOrderStatus(newLocalOrder.id, 'ERROR_WOMPI_CALL');
-          this.logger.log(`Orden local ${newLocalOrder.id} actualizada a estado ERROR_WOMPI_CALL`);
         } catch (updateError) {
           this.logger.error(`Error al intentar actualizar la orden local ${newLocalOrder.id} a ERROR_WOMPI_CALL: ${updateError.message}`, updateError.stack);
         }

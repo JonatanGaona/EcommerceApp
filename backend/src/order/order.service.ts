@@ -41,14 +41,12 @@ export class OrderService {
       order.wompiTransactionId = wompiTransactionId;
     }
     const updatedOrder = await this.orderRepository.save(order);
-    this.logger.log(`Orden ${id} actualizada en BD a estado: ${status}`);
 
     // Solo procesar si el estado cambió a APPROVED
     if (previousStatus !== 'APPROVED' && status === 'APPROVED') {
       if (updatedOrder.productId) {
         try {
           await this.productService.decreaseStock(updatedOrder.productId, 1);
-          this.logger.log(`Stock reducido para el producto ${updatedOrder.productId} de la orden ${id}`);
         } catch (error) {
           this.logger.error(`Error al reducir stock para producto ${updatedOrder.productId}: ${error.message}`, error.stack);
         }
@@ -78,7 +76,6 @@ export class OrderService {
   }
 
   async findByWompiId(wompiId: string): Promise<Order | null> {
-    this.logger.log(`Buscando orden por wompiTransactionId: ${wompiId}`);
     return this.orderRepository.findOne({ where: { wompiTransactionId: wompiId } });
   }
 

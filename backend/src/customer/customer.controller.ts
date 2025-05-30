@@ -9,7 +9,6 @@ export class CustomerController {
 
   @Get()
   async getAllCustomers(): Promise<Customer[]> {
-    this.logger.log('Solicitud para obtener todos los clientes');
     return this.customerService.findAll();
   }
 }
