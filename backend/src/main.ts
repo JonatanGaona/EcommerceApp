@@ -25,7 +25,7 @@ async function bootstrap() {
   // Este bloque de código se encarga de poblar la base de datos con productos iniciales
   // si no existen productos previamente. Está diseñado para ejecutarse solo en entornos
   // de desarrollo para evitar la siembra de datos en producción.
-  if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+ /*  if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
     const productService = app.get(ProductService); // Obtiene una instancia de ProductService
 
     try {
@@ -56,7 +56,7 @@ async function bootstrap() {
     } catch (error) {
       console.error('Error during product seeding:', error);
     }
-  }
+  } */
 }
 
 bootstrap();
